@@ -6,16 +6,19 @@ import jakarta.persistence.*;
 import java.util.List;
 
 @Entity
-@Table(name = "ProductCategories")
+@Table(name = "productcategories")
 public class ProductCategory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "name")
     private String name;
+
+    @Column(name = "description")
     private String description;
 
-    @OneToMany(mappedBy = "category")
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Product> products;
 

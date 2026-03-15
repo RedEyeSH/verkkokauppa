@@ -1,5 +1,6 @@
 package fi.metropolia.verkkokauppa.service;
 
+import fi.metropolia.verkkokauppa.dto.ProductCatalogDto;
 import fi.metropolia.verkkokauppa.dto.ProductDto;
 import fi.metropolia.verkkokauppa.entity.Product;
 import fi.metropolia.verkkokauppa.entity.ProductCategory;
@@ -8,6 +9,7 @@ import fi.metropolia.verkkokauppa.repository.ProductRepository;
 import fi.metropolia.verkkokauppa.repository.CategoryRepository;
 import fi.metropolia.verkkokauppa.repository.SupplierRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,7 +17,7 @@ import java.util.List;
 public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-    private final  SupplierRepository supplierRepository;
+    private final SupplierRepository supplierRepository;
 
 
     public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository, SupplierRepository supplierRepository) {
@@ -29,42 +31,38 @@ public class ProductService {
     }
 
     public Product getProduct(Integer id) {
-        Product p = productRepository.findById(id).orElseThrow();
-
-        System.out.println(p.getCategory());
-        System.out.println(p.getSupplier());
-
-        System.out.println("Product ID: " + p.getId());
-        if (p.getCategory() != null) {
-            System.out.println("Category ID: " + p.getCategory().getId());
-            System.out.println("Category Name: " + p.getCategory().getName());
-        } else {
-            System.out.println("Category is null!");
-        }
-//        return productRepository.findById(id).orElseThrow();
-        return p;
+        return productRepository.findById(id).orElseThrow();
     }
 
 //    public Product createProduct(Product product) {
 //        return productRepository.save(product);
 //    }
 
+    @Transactional
     public Product createProduct(ProductDto dto) {
-        Product product = new Product();
+        // 1. Debug-tuloste: nähdään mitä dataa Postmanista tulee sisään
+        System.out.println("Yritetään luoda tuotetta: " + dto.getName());
+        System.out.println("Kategoria-ID: " + dto.getCategoryId());
+        System.out.println("Toimittaja-ID: " + dto.getSupplierId());
 
+        if (dto.getCategoryId() == null || dto.getSupplierId() == null) {
+            throw new RuntimeException("Kategoria-ID tai Toimittaja-ID puuttuu pyynnöstä!");
+        }
+
+        Product product = new Product();
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
         product.setStockQuantity(dto.getStockQuantity());
 
-        ProductCategory category =
-                categoryRepository.findById(dto.getCategoryId()).orElseThrow();
-
+        // 2. Haetaan kategoria ja heitetään selkeä virhe jos ei löydy
+        ProductCategory category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Kategoriaa ei löytynyt ID:llä: " + dto.getCategoryId()));
         product.setCategory(category);
 
-        Supplier supplier =
-                supplierRepository.findById(dto.getSupplierId()).orElseThrow();
-
+        // 3. Haetaan toimittaja ja heitetään selkeä virhe jos ei löydy
+        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
+                .orElseThrow(() -> new RuntimeException("Toimittajaa ei löytynyt ID:llä: " + dto.getSupplierId()));
         product.setSupplier(supplier);
 
         return productRepository.save(product);
@@ -83,5 +81,9 @@ public class ProductService {
 
     public void deleteProduct(Integer id) {
         productRepository.deleteById(id);
+    }
+
+    public List<ProductCatalogDto> getProductCatalog() {
+        return productRepository.findAllProductsForCatalog();
     }
 }

@@ -3,15 +3,22 @@ package fi.metropolia.verkkokauppa.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "Suppliers")
+@Table(name = "suppliers")
 public class Supplier {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "name")
     private String name;
+
+    @Column(name = "contact_name")
     private String contactName;
+
+    @Column(name = "phone")
     private String phone;
+
+    @Column(name = "email")
     private String email;
 
     // Getters & setters

@@ -3,15 +3,22 @@ package fi.metropolia.verkkokauppa.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "SupplierAddresses")
+@Table(name = "supplieraddresses")
 public class SupplierAddress {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "street_address")
     private String streetAddress;
+
+    @Column(name = "postal_code")
     private String postalCode;
+
+    @Column(name = "city")
     private String city;
+
+    @Column(name = "country")
     private String country;
 
     @ManyToOne

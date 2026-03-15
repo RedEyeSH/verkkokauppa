@@ -5,13 +5,19 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ProductPriceHistory")
+@Table(name = "productpricehistory")
 public class ProductPriceHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
+    @Column(name = "price")
     private BigDecimal price;
+
+    @Column(name = "valid_from")
     private LocalDateTime validFrom;
+
+    @Column(name = "valid_to")
     private LocalDateTime validTo;
 
     @ManyToOne

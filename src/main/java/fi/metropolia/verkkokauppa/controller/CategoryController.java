@@ -20,9 +20,19 @@ public class CategoryController {
         return service.getCategories();
     }
 
+    @GetMapping("/{id}")
+    public ProductCategory getCategory(@PathVariable Integer id) {
+        return service.getCategory(id);
+    }
+
     @PostMapping
     public ProductCategory createCategory(@RequestBody ProductCategory category) {
         return service.createCategory(category);
+    }
+
+    @PutMapping("/{id}")
+    public ProductCategory updateCategory(@PathVariable Integer id, @RequestBody ProductCategory category) {
+        return service.updateCategory(id, category);
     }
 
     @DeleteMapping("/{id}")

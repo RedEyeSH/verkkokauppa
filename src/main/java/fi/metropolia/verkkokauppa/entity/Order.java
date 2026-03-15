@@ -2,6 +2,7 @@ package fi.metropolia.verkkokauppa.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "Orders")
@@ -10,8 +11,13 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "order_date")
     private LocalDateTime orderDate;
+
+    @Column(name = "delivery_date")
     private LocalDateTime deliveryDate;
+
+    @Column(name = "status")
     private String status;
 
     @ManyToOne
@@ -21,6 +27,10 @@ public class Order {
     @ManyToOne
     @JoinColumn(name = "shipping_address_id")
     private CustomerAddress shippingAddress;
+
+//    @OneToMany(mappedBy = "order", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<OrderItem> items;
 
     // Getters & setters
     public Integer getId() {
@@ -69,5 +79,13 @@ public class Order {
 
     public void setShippingAddress(CustomerAddress shippingAddress) {
         this.shippingAddress = shippingAddress;
+    }
+
+    public List<OrderItem> getItems() {
+        return items;
+    }
+
+    public void setItems(List<OrderItem> items) {
+        this.items = items;
     }
 }
