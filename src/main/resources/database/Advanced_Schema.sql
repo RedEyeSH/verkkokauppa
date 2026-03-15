@@ -1,3 +1,6 @@
+DROP VIEW IF EXISTS OrderReceipt;
+DROP VIEW IF EXISTS OrderTotals;
+DROP VIEW IF EXISTS ProductCatalog;
 DROP TABLE IF EXISTS OrderItems;
 DROP TABLE IF EXISTS Orders;
 DROP TABLE IF EXISTS ProductPriceHistory;
@@ -75,7 +78,6 @@ CREATE TABLE Products (
     CONSTRAINT fk_product_supplier FOREIGN KEY (supplier_id) REFERENCES Suppliers(id)
 );
 
--- PRODUCT PRICE HISTORY
 CREATE TABLE ProductPriceHistory (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,
@@ -112,92 +114,78 @@ CREATE TABLE OrderItems (
     CONSTRAINT fk_orderitem_product FOREIGN KEY (product_id) REFERENCES Products(id)
 );
 
--- CREATE INDEXes
 CREATE INDEX idx_orders_customer ON Orders(customer_id);
 CREATE INDEX idx_products_category ON Products(category_id);
-CREATE INDEX idx_products_supplier ON Products(supplier_id);
 CREATE INDEX idx_orderitems_product ON OrderItems(product_id);
-CREATE INDEX idx_orders_date ON Orders(order_date);
 
--- CREATE VIEWS
+DELIMITER //
+CREATE TRIGGER tr_after_insert_order_item
+    AFTER INSERT ON OrderItems
+    FOR EACH ROW
+BEGIN
+    UPDATE Products
+    SET stock_quantity = stock_quantity - NEW.quantity
+    WHERE id = NEW.product_id;
+END; //
+
+CREATE TRIGGER tr_before_product_price_update
+    BEFORE UPDATE ON Products
+    FOR EACH ROW
+BEGIN
+    IF OLD.price <> NEW.price THEN
+    UPDATE ProductPriceHistory
+    SET valid_to = NOW()
+    WHERE product_id = OLD.id AND valid_to IS NULL;
+
+    INSERT INTO ProductPriceHistory (product_id, price, valid_from)
+    VALUES (OLD.id, NEW.price, NOW());
+END IF;
+END; //
+
+DELIMITER ;
+
 CREATE VIEW OrderReceipt AS
-SELECT
-    o.id AS order_id,
-    o.order_date,
-    c.first_name,
-    c.last_name,
-    p.name AS product_name,
-    oi.quantity,
-    oi.unit_price,
-    (oi.quantity * oi.unit_price) AS total_price
-FROM Orders o
-         JOIN Customers c ON o.customer_id = c.id
-         JOIN OrderItems oi ON oi.order_id = o.id
-         JOIN Products p ON oi.product_id = p.id;
-
-CREATE VIEW OrderTotals AS
-SELECT
-    o.id AS order_id,
-    SUM(oi.quantity * oi.unit_price) AS total_amount
-FROM Orders o
-         JOIN OrderItems oi ON o.id = oi.order_id
-GROUP BY o.id;
+SELECT o.id AS order_id, o.order_date, c.first_name, c.last_name, p.name AS product_name, oi.quantity, oi.unit_price, (oi.quantity * oi.unit_price) AS total_price
+FROM Orders o JOIN Customers c ON o.customer_id = c.id JOIN OrderItems oi ON oi.order_id = o.id JOIN Products p ON oi.product_id = p.id;
 
 CREATE VIEW ProductCatalog AS
-SELECT
-    p.id,
-    p.name,
-    p.description,
-    p.price,
-    p.stock_quantity,
-    c.name AS category,
-    s.name AS supplier
-FROM Products p
-         JOIN ProductCategories c ON p.category_id = c.id
-         JOIN Suppliers s ON p.supplier_id = s.id;
+SELECT p.id, p.name, p.price, p.stock_quantity, c.name AS category, s.name AS supplier
+FROM Products p JOIN ProductCategories c ON p.category_id = c.id JOIN Suppliers s ON p.supplier_id = s.id;
 
--- MOCK DATA WITH METADATA
-INSERT INTO Customers (first_name,last_name,email,phone,created_at)
-VALUES
-    ('Matti','Meikäläinen','matti@email.com','0401234567', CURRENT_TIMESTAMP),
-    ('Anna','Virtanen','anna@email.com','0507654321', CURRENT_TIMESTAMP);
+INSERT INTO Customers (first_name, last_name, email, phone) VALUES
+('Matti', 'Meikäläinen', 'matti@email.com', '0401234567'),
+('Anna', 'Virtanen', 'anna@email.com', '0507654321'),
+('Teppo', 'Testaaja', 'teppo@testi.fi', '0459998887');
 
-INSERT INTO CustomerAddresses (customer_id, street_address, postal_code, city, country, created_at)
-VALUES
-    (1,'Testikatu 1','00100','Helsinki','Finland', CURRENT_TIMESTAMP),
-    (2,'Esimerkkitie 5','33100','Tampere','Finland', CURRENT_TIMESTAMP);
+INSERT INTO CustomerAddresses (customer_id, street_address, postal_code, city, country) VALUES
+(1, 'Testikatu 1', '00100', 'Helsinki', 'Finland'),
+(2, 'Esimerkkitie 5', '33100', 'Tampere', 'Finland'),
+(3, 'Koodikuja 101', '00100', 'Helsinki', 'Finland');
 
-INSERT INTO Suppliers (name, contact_name, phone, email, created_at)
-VALUES
-    ('TechSupplier','Timo','040111222','tech@supplier.com', CURRENT_TIMESTAMP),
-    ('HardwareWorld','Helena','050333444','hw@supplier.com', CURRENT_TIMESTAMP);
+INSERT INTO Suppliers (name, contact_name, phone, email) VALUES
+('TechSupplier', 'Timo', '040111222', 'tech@supplier.com'),
+('HardwareWorld', 'Helena', '050333444', 'hw@supplier.com'),
+('Hardware Oy', 'Heikki', '040555666', 'heikki@hardware.fi');
 
-INSERT INTO SupplierAddresses (supplier_id, street_address, postal_code, city, country, created_at)
-VALUES
-    (1,'Supplier Street 1','00100','Helsinki','Finland', CURRENT_TIMESTAMP),
-    (2,'Supplier Road 5','33100','Tampere','Finland', CURRENT_TIMESTAMP);
+INSERT INTO ProductCategories (name, description) VALUES
+('Electronics', 'Laptops, phones'),
+('Accessories', 'Computer accessories'),
+('Peripherals', 'Mice and keyboards');
 
-INSERT INTO ProductCategories (name, description, created_at)
-VALUES
-    ('Electronics','Electronic devices like laptops, phones', CURRENT_TIMESTAMP),
-    ('Accessories','Computer and mobile accessories', CURRENT_TIMESTAMP);
+INSERT INTO Products (name, description, price, stock_quantity, category_id, supplier_id) VALUES
+('Laptop', 'High performance laptop', 1200.00, 10, 1, 1),
+('Gaming Mouse', 'High precision mouse', 70.00, 20, 2, 2),
+('Mechanical Keyboard', 'RGB mechanical keyboard', 120.00, 15, 2, 2),
+('Webcam', '4K Ultra HD', 150.00, 5, 3, 3),
+('USB Hub', '7-port USB 3.0', 45.00, 50, 2, 3);
 
-INSERT INTO Products (name, description, price, stock_quantity, category_id, supplier_id, created_at)
-VALUES
-    ('Laptop','High performance laptop',1200,10,1,1, CURRENT_TIMESTAMP),
-    ('Gaming Mouse','High precision mouse',70,20,2,2, CURRENT_TIMESTAMP),
-    ('Mechanical Keyboard','RGB mechanical keyboard',120,15,2,2, CURRENT_TIMESTAMP);
+INSERT INTO ProductPriceHistory (product_id, price) SELECT id, price FROM Products;
 
-INSERT INTO ProductPriceHistory (product_id, price, created_at)
-SELECT id, price, CURRENT_TIMESTAMP FROM Products;
+INSERT INTO Orders (customer_id, shipping_address_id, status) VALUES
+(1, 1, 'NEW'),
+(2, 2, 'NEW');
 
-INSERT INTO Orders (customer_id, shipping_address_id, status, created_at)
-VALUES
-    (1,1,'NEW', CURRENT_TIMESTAMP),
-    (2,2,'NEW', CURRENT_TIMESTAMP);
-
-INSERT INTO OrderItems (order_id, product_id, quantity, unit_price, created_at)
-VALUES
-    (1,1,1,1200,CURRENT_TIMESTAMP),
-    (1,2,2,70,CURRENT_TIMESTAMP),
-    (2,3,1,120,CURRENT_TIMESTAMP);
+INSERT INTO OrderItems (order_id, product_id, quantity, unit_price) VALUES
+(1, 1, 1, 1200.00),
+(1, 2, 2, 70.00),
+(2, 3, 1, 120.00);
